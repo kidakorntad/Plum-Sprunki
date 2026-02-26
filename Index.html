@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Custom Sprunki Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-color: #333;
+            --accent-color: #00ff88;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; color: var(--accent-color); }
+
+        /* พื้นที่วางตัวละคร */
+        #game-board {
+            display: flex;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .character-slot {
+            width: 150px;
+            height: 220px;
+            background: var(--card-color);
+            border: 3px dashed #555;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .character-slot.drag-over {
+            border-color: var(--accent-color);
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .character-slot.active {
+            border-style: solid;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        /* ส่วนของไอคอนเครื่องดนตรี */
+        #instrument-panel {
+            background: #222;
+            padding: 20px;
+            border-radius: 50px;
+            display: flex;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .instrument {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            color: black;
+            transition: transform 0.2s;
+        }
+
+        .instrument:active { cursor: grabbing; }
+        .instrument:hover { transform: translateY(-5px); }
+
+        /* สีแต่ละประเภท */
+        .beat { background: #ff4444; }
+        .melo { background: #44aaff; }
+        .vocal { background: #ffcc00; }
+
+        .controls { margin-top: 30px; }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            border-radius: 25px;
+            border: none;
+            background: var(--accent-color);
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { opacity: 0.8; }
+        .reset-btn { background: #ff4444; color: white; }
+    </style>
+</head>
+<body>
+
+    <h1>✨ Sprunki Web Maker ✨</h1>
+    
+    <div class="controls">
+        <button id="start-btn">1. คลิกเพื่อเริ่มระบบเสียง (Start Engine)</button>
+        <button class="reset-btn" onclick="resetGame()">รีเซ็ตทั้งหมด</button>
+    </div>
+
+    <div id="game-board">
+        <div class="character-slot" id="char1">ตัวละคร 1</div>
+        <div class="character-slot" id="char2">ตัวละคร 2</div>
+        <div class="character-slot" id="char3">ตัวละคร 3</div>
+        <div class="character-slot" id="char4">ตัวละคร 4</div>
+        <div class="character-slot" id="char5">ตัวละคร 5</div>
+    </div>
+
+    <p>ลากไอคอนด้านล่างไปวางบนตัวละคร</p>
+    
+    <div id="instrument-panel">
+        <div class="instrument beat" id="drum1" draggable="true">DRUM</div>
+        <div class="instrument beat" id="bass" draggable="true">BASS</div>
+        <div class="instrument melo" id="piano" draggable="true">PIANO</div>
+        <div class="instrument melo" id="synth" draggable="true">SYNTH</div>
+        <div class="instrument vocal" id="voice" draggable="true">VOICE</div>
+    </div>
+
+    <script>
+        // --- 1. การตั้งค่าเสียง (Audio Setup) ---
+        const samples = {
+            'drum1': 'https://tonejs.github.io/audio/loop/drums.mp3',
+            'bass': 'https://tonejs.github.io/audio/loop/cool-loop.mp3',
+            'piano': 'https://tonejs.github.io/audio/loop/chime.mp3',
+            'synth': 'https://tonejs.github.io/audio/loop/loops.mp3',
+            'voice': 'https://tonejs.github.io/audio/loop/funky.mp3'
+        };
+
+        const players = {};
+        
+        // สร้างเครื่องเล่นเสียงสำหรับแต่ละไอคอน
+        Object.keys(samples).forEach(key => {
+            players[key] = new Tone.Player(samples[key]).toDestination();
+            players[key].loop = true;
+        });
+
+        // ปุ่มเริ่มระบบเสียง (Browser บังคับให้ User ต้อง Click ก่อนเสียงจึงจะดัง)
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            await Tone.start();
+            Tone.Transport.bpm.value = 120;
+            Tone.Transport.start();
+            document.getElementById('start-btn').innerText = "Engine Running 🟢";
+            document.getElementById('start-btn').style.background = "#555";
+        });
+
+        // --- 2. ระบบลากวาง (Drag & Drop Logic) ---
+        const instruments = document.querySelectorAll('.instrument');
+        const slots = document.querySelectorAll('.character-slot');
+
+        instruments.forEach(inst => {
+            inst.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', e.target.id);
+            });
+        });
+
+        slots.forEach(slot => {
+            slot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            });
+
+            slot.addEventListener('dragleave', () => {
+                slot.classList.remove('drag-over');
+            });
+
+            slot.addEventListener('drop', (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('text/plain');
+                
+                // สั่งเล่นเสียงโดยให้ลงจังหวะ Next Bar (@1n)
+                if (players[id]) {
+                    if (players[id].state !== "started") {
+                        players[id].start("@1n");
+                        slot.classList.add('active');
+                        slot.innerHTML = `<b>เล่นอยู่:</b><br>${id.toUpperCase()}`;
+                        slot.style.backgroundColor = window.getComputedStyle(document.getElementById(id)).backgroundColor;
+                    }
+                }
+            });
+        });
+
+        function resetGame() {
+            Object.values(players).forEach(p => p.stop());
+            slots.forEach(slot => {
+                slot.classList.remove('active');
+                slot.
