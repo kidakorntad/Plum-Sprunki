@@ -83,6 +83,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border: 1px solid #334155;
+            pointer-events: none;
         }
 
         .active .status-indicator {
@@ -151,7 +152,6 @@
     </div>
 
     <div id="game-board">
-        <!-- ตัวละคร 5 ตัว รองรับ char1 ถึง char5 ตามตรรกะ Scalable -->
         <div class="character-slot" id="char1" data-id="1">
             <div class="status-indicator">Idle</div>
         </div>
@@ -190,15 +190,13 @@
         let engineStarted = false;
 
         /**
-         * ฟังก์ชันอัปเดตรูปภาพและข้อความสถานะ
-         * ตรวจสอบความถูกต้องตามชื่อไฟล์ที่คุณระบุ: char{id}-idle หรือ char{id}-active
+         * สำคัญ: ตรวจสอบให้แน่ใจว่าบน GitHub ของคุณมีนามสกุลไฟล์ .png 
+         * และชื่อเป็นตัวพิมพ์เล็กทั้งหมด
          */
         function updateCharacterState(element, charId, status) {
-            // ชื่อไฟล์ตรงตามที่คุณระบุเป๊ะๆ (ไม่มีนามสกุลไฟล์)
-            const fileName = `char${charId}-${status}`;
+            const fileName = `char${charId}-${status}.png`;
             element.style.backgroundImage = `url('${fileName}')`;
             
-            // อัปเดตข้อความใน indicator เพื่อตรวจสอบ Logic (Data-Driven)
             const indicator = element.querySelector('.status-indicator');
             if (indicator) {
                 indicator.innerText = status;
@@ -210,7 +208,6 @@
             players[key].loop = true;
         });
 
-        // Initialize: ตั้งสถานะเริ่มต้นเป็น idle สำหรับทุกตัว
         document.querySelectorAll('.character-slot').forEach(slot => {
             updateCharacterState(slot, slot.dataset.id, 'idle');
         });
@@ -256,7 +253,6 @@
                 if (players[soundId]) {
                     players[soundId].start("@1n");
                     slot.classList.add('active');
-                    // เปลี่ยนสถานะเป็น active ตามชื่อไฟล์ที่เตรียมไว้
                     updateCharacterState(slot, charId, 'active');
                 }
             });
@@ -266,7 +262,6 @@
             Object.values(players).forEach(p => p.stop());
             slots.forEach(slot => {
                 slot.classList.remove('active');
-                // คืนค่ากลับไปเป็นสถานะ idle
                 updateCharacterState(slot, slot.dataset.id, 'idle');
             });
         }
