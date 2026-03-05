@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sprunki Custom Maker - Production Edition</title>
-    <!-- Tone.js for Precise Audio Sync -->
+    <!-- 1. Tone.js: ห้องสมุดจัดการเสียงที่แม่นยำระดับห้องอัด เพื่อให้เสียง Loop ตรงจังหวะกันเป๊ะ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <style>
+        /* 2. Design Tokens: กำหนดค่ามาตรฐานเพื่อความเป็น Minimalist และการจัดการที่ง่าย (Low Maintenance) */
         :root {
-            --bg-color: #0f172a;
-            --slot-bg: #1e293b;
-            --accent: #10b981;
+            --bg-color: #0f172a;    /* สีพื้นหลังเข้มเพื่อขับลายเส้นตัวละคร */
+            --slot-bg: #1e293b;     /* สีพื้นหลังช่องตัวละคร */
+            --accent: #10b981;      /* สีเขียวมรกตสำหรับสถานะ Active */
         }
 
         body {
@@ -24,14 +25,14 @@
             margin: 0;
             padding: 20px;
             min-height: 100vh;
-            -webkit-user-select: none;
+            -webkit-user-select: none; /* ป้องกันการคลุมดำเวลาลากไอคอนบนหน้าจอสัมผัส */
             user-select: none;
         }
 
         h1 { margin-bottom: 5px; font-weight: 800; font-size: 1.5rem; color: var(--accent); }
         .subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 0.9rem; text-align: center; }
 
-        /* Character Slots Container */
+        /* 3. Game Board: วาง Layout แบบ Responsive รองรับอุปกรณ์ทุกขนาด (Scalable) */
         #game-board {
             display: flex;
             gap: 12px;
@@ -42,6 +43,7 @@
             max-width: 900px;
         }
 
+        /* 4. Character Slot: พื้นที่แสดงภาพตัวละครและการตอบสนองต่อการลากวาง */
         .character-slot {
             width: 150px;
             height: 220px;
@@ -51,17 +53,17 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: flex-end; /* ให้สถานะและตัวละครอยู่ด้านล่างเสมอ */
             padding-bottom: 10px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            background-size: contain;
+            background-size: contain; /* ปรับขนาดรูปให้พอดีช่องอัตโนมัติ */
             background-repeat: no-repeat;
             background-position: center bottom;
             position: relative;
         }
 
         .character-slot.drag-over {
-            border-color: var(--accent);
+            border-color: var(--accent); /* ไฮไลท์เมื่อมีการลากไอคอนมาจ่อที่ช่อง */
             background-color: #1e293b;
             transform: translateY(-5px);
         }
@@ -72,7 +74,7 @@
             box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
         }
 
-        /* Status Label */
+        /* 5. Status Label: แสดงผลสถานะภาพ (Data-Driven Visual) */
         .status-indicator {
             font-size: 10px;
             background: rgba(0, 0, 0, 0.7);
@@ -92,7 +94,7 @@
             font-weight: bold;
         }
 
-        /* Icons Panel */
+        /* 6. Panel: ถาดเก็บไอคอนเครื่องดนตรี */
         #instrument-panel {
             background: #1e293b;
             padding: 15px 30px;
@@ -120,6 +122,7 @@
 
         .instrument:hover { transform: scale(1.1); }
         
+        /* สีแยกตามประเภทเสียงเพื่อการจัดการที่ชัดเจน */
         .beat { background: linear-gradient(135deg, #ef4444, #b91c1c); }
         .melo { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
         .vocal { background: linear-gradient(135deg, #fbbf24, #d97706); }
@@ -147,11 +150,13 @@
     <p class="subtitle">ลากไอคอนไปวางเพื่อเริ่มการแสดงและตรวจสอบสถานะไฟล์</p>
     
     <div class="controls">
+        <!-- ต้องกด Start เพื่อปลุก Web Audio API ตามกฎความปลอดภัยของ Browser -->
         <button id="start-btn">1. เริ่มระบบเสียง (Engine Start)</button>
         <button class="reset-btn" onclick="resetGame()">2. ล้างเวที</button>
     </div>
 
     <div id="game-board">
+        <!-- data-id ใช้เพื่อจับคู่กับหมายเลขไฟล์ภาพในระบบ (เช่น char1, char2...) -->
         <div class="character-slot" id="char1" data-id="1">
             <div class="status-indicator">Idle</div>
         </div>
@@ -170,6 +175,7 @@
     </div>
     
     <div id="instrument-panel">
+        <!-- draggable="true" อนุญาตให้ลากไอคอนเหล่านี้ได้ -->
         <div class="instrument beat" id="sound1" draggable="true">BEAT 1</div>
         <div class="instrument beat" id="sound2" draggable="true">BEAT 2</div>
         <div class="instrument melo" id="sound3" draggable="true">MELO 1</div>
@@ -178,6 +184,7 @@
     </div>
 
     <script>
+        // 7. Data Definition: กำหนดแหล่งที่มาของเสียง (สามารถเปลี่ยนเป็นไฟล์ในเครื่องได้ในอนาคต)
         const sampleUrls = {
             'sound1': 'https://tonejs.github.io/audio/loop/drums.mp3',
             'sound2': 'https://tonejs.github.io/audio/loop/cool-loop.mp3',
@@ -190,32 +197,37 @@
         let engineStarted = false;
 
         /**
-         * สำคัญ: ตรวจสอบให้แน่ใจว่าบน GitHub ของคุณมีนามสกุลไฟล์ .png 
-         * และชื่อเป็นตัวพิมพ์เล็กทั้งหมด
+         * 8. Image Logic: ฟังก์ชันอัปเดตรูปภาพตามสถานะ
+         * ตรวจสอบความถูกต้องตามชื่อไฟล์บน GitHub: char{id}-idle.png หรือ char{id}-active.png
          */
         function updateCharacterState(element, charId, status) {
+            // สร้างชื่อไฟล์แบบ Dynamic เพื่อความ Scalable
             const fileName = `char${charId}-${status}.png`;
             element.style.backgroundImage = `url('${fileName}')`;
             
+            // อัปเดตข้อความใน Indicator เพื่อให้คุณตรวจสอบ Logic ได้ด้วยตาเปล่า (Data-Driven)
             const indicator = element.querySelector('.status-indicator');
             if (indicator) {
                 indicator.innerText = status;
             }
         }
 
+        // โหลดเสียงเข้าสู่ Memory และตั้งค่า Loop
         Object.keys(sampleUrls).forEach(key => {
             players[key] = new Tone.Player(sampleUrls[key]).toDestination();
             players[key].loop = true;
         });
 
+        // ตั้งสถานะเริ่มต้นเป็น Idle เมื่อโหลดหน้าเว็บครั้งแรก
         document.querySelectorAll('.character-slot').forEach(slot => {
             updateCharacterState(slot, slot.dataset.id, 'idle');
         });
 
+        // ฟังก์ชันเริ่มระบบเสียง (Engine Start)
         const startBtn = document.getElementById('start-btn');
         startBtn.addEventListener('click', async () => {
             await Tone.start();
-            Tone.Transport.bpm.value = 120;
+            Tone.Transport.bpm.value = 120; // กำหนดความเร็วเพลงกลาง
             Tone.Transport.start();
             engineStarted = true;
             startBtn.innerText = "ระบบออนไลน์ 🟢";
@@ -225,15 +237,17 @@
         const instruments = document.querySelectorAll('.instrument');
         const slots = document.querySelectorAll('.character-slot');
 
+        // 9. Interaction Logic: จัดการการลากไอคอน
         instruments.forEach(inst => {
             inst.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', e.target.id);
             });
         });
 
+        // 10. Drop Logic: จัดการการวางไอคอนและการเปลี่ยนสถานะ
         slots.forEach(slot => {
             slot.addEventListener('dragover', (e) => {
-                e.preventDefault();
+                e.preventDefault(); // จำเป็นเพื่อให้ระบบอนุญาตให้วางไฟล์ได้
                 slot.classList.add('drag-over');
             });
 
@@ -245,19 +259,25 @@
                 e.preventDefault();
                 slot.classList.remove('drag-over');
                 
-                if (!engineStarted) return;
+                if (!engineStarted) return; // ป้องกันการทำงานหากยังไม่กด Start
 
                 const soundId = e.dataTransfer.getData('text/plain');
                 const charId = slot.dataset.id;
 
                 if (players[soundId]) {
+                    // "@1n" สั่งให้เสียงเริ่มเล่นในจังหวะห้องเพลงถัดไป เพื่อให้เพลงไม่เพี้ยน (Sync)
                     players[soundId].start("@1n");
                     slot.classList.add('active');
+                    // เปลี่ยนภาพเป็นสถานะ Active ตามโครงสร้างไฟล์ภาพที่คุณเตรียมไว้
                     updateCharacterState(slot, charId, 'active');
                 }
             });
         });
 
+        /**
+         * 11. Reset Logic: คืนค่าระบบทั้งหมด
+         * เหมาะสำหรับล้าง Digital Assets เพื่อเริ่มโปรเจกต์ใหม่ (Low Maintenance)
+         */
         function resetGame() {
             Object.values(players).forEach(p => p.stop());
             slots.forEach(slot => {
