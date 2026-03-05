@@ -3,167 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Custom Sprunki Game</title>
+    <title>Sprunki Custom Maker - Production Edition</title>
+    <!-- Tone.js for Precise Audio Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --card-color: #333;
-            --accent-color: #00ff88;
+            --bg-color: #0f172a;
+            --slot-bg: #1e293b;
+            --accent: #10b981;
         }
 
         body {
             background-color: var(--bg-color);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
             padding: 20px;
+            min-height: 100vh;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        h1 { margin-bottom: 10px; color: var(--accent-color); }
+        h1 { margin-bottom: 5px; font-weight: 800; font-size: 1.5rem; color: var(--accent); }
+        .subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 0.9rem; text-align: center; }
 
-        /* พื้นที่วางตัวละคร */
+        /* Character Slots Container */
         #game-board {
             display: flex;
-            gap: 20px;
-            margin: 30px 0;
+            gap: 12px;
+            margin-bottom: 40px;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 900px;
         }
 
         .character-slot {
             width: 150px;
             height: 220px;
-            background: var(--card-color);
-            border: 3px dashed #555;
-            border-radius: 15px;
+            background-color: var(--slot-bg);
+            border: 2px solid #334155;
+            border-radius: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
+            justify-content: flex-end;
+            padding-bottom: 10px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center bottom;
             position: relative;
         }
 
         .character-slot.drag-over {
-            border-color: var(--accent-color);
-            background: #444;
-            transform: scale(1.05);
+            border-color: var(--accent);
+            background-color: #1e293b;
+            transform: translateY(-5px);
         }
 
         .character-slot.active {
+            border-color: var(--accent);
             border-style: solid;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
         }
 
-        /* ส่วนของไอคอนเครื่องดนตรี */
+        /* Status Label */
+        .status-indicator {
+            font-size: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #94a3b8;
+            padding: 2px 10px;
+            border-radius: 20px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid #334155;
+        }
+
+        .active .status-indicator {
+            color: var(--accent);
+            border-color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Icons Panel */
         #instrument-panel {
-            background: #222;
-            padding: 20px;
-            border-radius: 50px;
+            background: #1e293b;
+            padding: 15px 30px;
+            border-radius: 100px;
             display: flex;
             gap: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid #334155;
         }
 
         .instrument {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             cursor: grab;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 12px;
-            color: black;
+            font-size: 10px;
+            color: white;
             transition: transform 0.2s;
+            touch-action: none;
         }
 
-        .instrument:active { cursor: grabbing; }
-        .instrument:hover { transform: translateY(-5px); }
+        .instrument:hover { transform: scale(1.1); }
+        
+        .beat { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+        .melo { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .vocal { background: linear-gradient(135deg, #fbbf24, #d97706); }
 
-        /* สีแต่ละประเภท */
-        .beat { background: #ff4444; }
-        .melo { background: #44aaff; }
-        .vocal { background: #ffcc00; }
-
-        .controls { margin-top: 30px; }
+        .controls { margin-bottom: 25px; display: flex; gap: 10px; }
         button {
-            padding: 12px 25px;
-            font-size: 16px;
-            border-radius: 25px;
+            padding: 12px 24px;
+            font-size: 14px;
+            border-radius: 12px;
             border: none;
-            background: var(--accent-color);
-            color: black;
-            font-weight: bold;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-weight: 700;
             cursor: pointer;
-            margin: 5px;
+            transition: all 0.2s;
         }
-        button:hover { opacity: 0.8; }
-        .reset-btn { background: #ff4444; color: white; }
+        button:hover { background: var(--accent); color: white; }
+        .reset-btn { background: #450a0a; color: #fca5a5; }
+        
     </style>
 </head>
 <body>
 
-    <h1>✨ Sprunki Web Maker ✨</h1>
+    <h1>SPRINKI MAKER</h1>
+    <p class="subtitle">ลากไอคอนไปวางเพื่อเริ่มการแสดงและตรวจสอบสถานะไฟล์</p>
     
     <div class="controls">
-        <button id="start-btn">1. คลิกเพื่อเริ่มระบบเสียง (Start Engine)</button>
-        <button class="reset-btn" onclick="resetGame()">รีเซ็ตทั้งหมด</button>
+        <button id="start-btn">1. เริ่มระบบเสียง (Engine Start)</button>
+        <button class="reset-btn" onclick="resetGame()">2. ล้างเวที</button>
     </div>
 
     <div id="game-board">
-        <div class="character-slot" id="char1">ตัวละคร 1</div>
-        <div class="character-slot" id="char2">ตัวละคร 2</div>
-        <div class="character-slot" id="char3">ตัวละคร 3</div>
-        <div class="character-slot" id="char4">ตัวละคร 4</div>
-        <div class="character-slot" id="char5">ตัวละคร 5</div>
+        <!-- ตัวละคร 5 ตัว -->
+        <div class="character-slot" id="char1" data-id="1">
+            <div class="status-indicator">Idle</div>
+        </div>
+        <div class="character-slot" id="char2" data-id="2">
+            <div class="status-indicator">Idle</div>
+        </div>
+        <div class="character-slot" id="char3" data-id="3">
+            <div class="status-indicator">Idle</div>
+        </div>
+        <div class="character-slot" id="char4" data-id="4">
+            <div class="status-indicator">Idle</div>
+        </div>
+        <div class="character-slot" id="char5" data-id="5">
+            <div class="status-indicator">Idle</div>
+        </div>
     </div>
-
-    <p>ลากไอคอนด้านล่างไปวางบนตัวละคร</p>
     
     <div id="instrument-panel">
-        <div class="instrument beat" id="drum1" draggable="true">DRUM</div>
-        <div class="instrument beat" id="bass" draggable="true">BASS</div>
-        <div class="instrument melo" id="piano" draggable="true">PIANO</div>
-        <div class="instrument melo" id="synth" draggable="true">SYNTH</div>
-        <div class="instrument vocal" id="voice" draggable="true">VOICE</div>
+        <div class="instrument beat" id="sound1" draggable="true">BEAT 1</div>
+        <div class="instrument beat" id="sound2" draggable="true">BEAT 2</div>
+        <div class="instrument melo" id="sound3" draggable="true">MELO 1</div>
+        <div class="instrument melo" id="sound4" draggable="true">MELO 2</div>
+        <div class="instrument vocal" id="sound5" draggable="true">VOCAL</div>
     </div>
 
     <script>
-        // --- 1. การตั้งค่าเสียง (Audio Setup) ---
-        const samples = {
-            'drum1': 'https://tonejs.github.io/audio/loop/drums.mp3',
-            'bass': 'https://tonejs.github.io/audio/loop/cool-loop.mp3',
-            'piano': 'https://tonejs.github.io/audio/loop/chime.mp3',
-            'synth': 'https://tonejs.github.io/audio/loop/loops.mp3',
-            'voice': 'https://tonejs.github.io/audio/loop/funky.mp3'
+        const sampleUrls = {
+            'sound1': 'https://tonejs.github.io/audio/loop/drums.mp3',
+            'sound2': 'https://tonejs.github.io/audio/loop/cool-loop.mp3',
+            'sound3': 'https://tonejs.github.io/audio/loop/chime.mp3',
+            'sound4': 'https://tonejs.github.io/audio/loop/loops.mp3',
+            'sound5': 'https://tonejs.github.io/audio/loop/funky.mp3'
         };
 
         const players = {};
-        
-        // สร้างเครื่องเล่นเสียงสำหรับแต่ละไอคอน
-        Object.keys(samples).forEach(key => {
-            players[key] = new Tone.Player(samples[key]).toDestination();
+        let engineStarted = false;
+
+        // ฟังก์ชันอัปเดตรูปภาพและข้อความสถานะ
+        function updateCharacterState(element, charId, status) {
+            const fileName = `char${charId}-${status}`;
+            element.style.backgroundImage = `url('${fileName}')`;
+            
+            // อัปเดตข้อความใน status-indicator
+            const indicator = element.querySelector('.status-indicator');
+            if (indicator) {
+                indicator.innerText = status;
+            }
+        }
+
+        Object.keys(sampleUrls).forEach(key => {
+            players[key] = new Tone.Player(sampleUrls[key]).toDestination();
             players[key].loop = true;
         });
 
-        // ปุ่มเริ่มระบบเสียง (Browser บังคับให้ User ต้อง Click ก่อนเสียงจึงจะดัง)
-        document.getElementById('start-btn').addEventListener('click', async () => {
+        // ตั้งสถานะเริ่มต้น
+        document.querySelectorAll('.character-slot').forEach(slot => {
+            updateCharacterState(slot, slot.dataset.id, 'idle');
+        });
+
+        const startBtn = document.getElementById('start-btn');
+        startBtn.addEventListener('click', async () => {
             await Tone.start();
             Tone.Transport.bpm.value = 120;
             Tone.Transport.start();
-            document.getElementById('start-btn').innerText = "Engine Running 🟢";
-            document.getElementById('start-btn').style.background = "#555";
+            engineStarted = true;
+            startBtn.innerText = "ระบบออนไลน์ 🟢";
+            startBtn.disabled = true;
         });
 
-        // --- 2. ระบบลากวาง (Drag & Drop Logic) ---
         const instruments = document.querySelectorAll('.instrument');
         const slots = document.querySelectorAll('.character-slot');
 
@@ -186,16 +243,16 @@
             slot.addEventListener('drop', (e) => {
                 e.preventDefault();
                 slot.classList.remove('drag-over');
-                const id = e.dataTransfer.getData('text/plain');
                 
-                // สั่งเล่นเสียงโดยให้ลงจังหวะ Next Bar (@1n)
-                if (players[id]) {
-                    if (players[id].state !== "started") {
-                        players[id].start("@1n");
-                        slot.classList.add('active');
-                        slot.innerHTML = `<b>เล่นอยู่:</b><br>${id.toUpperCase()}`;
-                        slot.style.backgroundColor = window.getComputedStyle(document.getElementById(id)).backgroundColor;
-                    }
+                if (!engineStarted) return;
+
+                const soundId = e.dataTransfer.getData('text/plain');
+                const charId = slot.dataset.id;
+
+                if (players[soundId]) {
+                    players[soundId].start("@1n");
+                    slot.classList.add('active');
+                    updateCharacterState(slot, charId, 'active');
                 }
             });
         });
@@ -204,4 +261,9 @@
             Object.values(players).forEach(p => p.stop());
             slots.forEach(slot => {
                 slot.classList.remove('active');
-                slot.
+                updateCharacterState(slot, slot.dataset.id, 'idle');
+            });
+        }
+    </script>
+</body>
+</html>
