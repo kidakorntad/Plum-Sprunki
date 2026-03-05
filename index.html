@@ -158,12 +158,46 @@
         button:hover { background: var(--accent); color: white; }
         .reset-btn { background: #450a0a; color: #fca5a5; }
         
+        /* Overlay สำหรับเริ่มเกมแบบเนียนๆ */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+        }
+        .start-hint {
+            font-size: 1.2rem;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            padding: 20px 40px;
+            border-radius: 50px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
     </style>
 </head>
 <body>
 
+    <!-- Overlay สำหรับ Unlock เสียงตามกฎ Browser -->
+    <div id="start-overlay" onclick="initApp()">
+        <div class="start-hint">คลิกเพื่อเริ่มโปรเจกต์ (Unlock Audio)</div>
+    </div>
+
     <h1>SPRINKI MAKER</h1>
-    <p class="subtitle">ลากเสียงมาวางได้ทันที ระบบจะเปิดการทำงานอัตโนมัติเมื่อเริ่มเล่น</p>
+    <p class="subtitle">คลิกที่หน้าจอหนึ่งครั้งเพื่อปลดล็อกระบบเสียง</p>
     
     <div class="controls">
         <button class="reset-btn" onclick="resetGame()">ล้างเวทีทั้งหมด</button>
@@ -204,14 +238,19 @@
         const players = {};
         let audioStarted = false;
 
-        // 1. Invisible Initialization: ฟังก์ชันเปิด Audio Context แบบเงียบๆ
-        async function ensureAudioStarted() {
+        // ฟังก์ชันหลักที่รันเมื่อผู้ใช้คลิก Overlay
+        async function initApp() {
             if (!audioStarted) {
-                await Tone.start();
-                Tone.Transport.bpm.value = 120;
-                Tone.Transport.start();
-                audioStarted = true;
-                console.log("Audio Engine Started via User Interaction");
+                try {
+                    await Tone.start();
+                    Tone.Transport.bpm.value = 120;
+                    Tone.Transport.start();
+                    audioStarted = true;
+                    document.getElementById('start-overlay').style.display = 'none';
+                    console.log("Audio Engine Ready");
+                } catch (e) {
+                    console.error(e);
+                }
             }
         }
 
@@ -223,9 +262,7 @@
             if (imgElement) {
                 imgElement.src = fileName;
                 imgElement.onload = () => imgElement.style.opacity = '1';
-                imgElement.onerror = () => {
-                    imgElement.style.opacity = '0';
-                };
+                imgElement.onerror = () => { imgElement.style.opacity = '0'; };
             }
             if (indicator) {
                 indicator.innerText = status;
@@ -245,6 +282,7 @@
             });
         }
 
+        // เริ่มโหลดไฟล์เสียงทันทีเบื้องหลัง
         preLoadSounds();
 
         document.querySelectorAll('.character-slot').forEach(slot => {
@@ -254,17 +292,11 @@
         const instruments = document.querySelectorAll('.instrument');
         const slots = document.querySelectorAll('.character-slot');
 
-        // 2. Event Listener Mapping: ผูกการเริ่มระบบเข้ากับการโต้ตอบของผู้ใช้
         instruments.forEach(inst => {
             inst.addEventListener('dragstart', (e) => {
-                ensureAudioStarted(); // เริ่มโหลด Audio ทันทีที่เริ่มลาก
                 e.dataTransfer.setData('text/plain', e.target.id);
             });
         });
-
-        // รองรับการคลิกหน้าจอทั่วไปเพื่อเปิดเสียง (เพื่อความปลอดภัย)
-        document.body.addEventListener('mousedown', ensureAudioStarted, { once: true });
-        document.body.addEventListener('touchstart', ensureAudioStarted, { once: true });
 
         slots.forEach(slot => {
             slot.addEventListener('dragover', (e) => e.preventDefault());
@@ -275,9 +307,6 @@
                 e.preventDefault();
                 slot.classList.remove('drag-over');
                 
-                // ตรวจสอบความพร้อมของระบบเสียงอีกครั้ง
-                await ensureAudioStarted();
-
                 const soundId = e.dataTransfer.getData('text/plain');
                 const charId = slot.dataset.id;
                 const player = players[soundId];
@@ -286,7 +315,7 @@
                 updateCharacterState(slot, charId, 'active');
 
                 const playWhenReady = () => {
-                    if (player.loaded) {
+                    if (player && player.loaded) {
                         player.start("@1n");
                         updateCharacterState(slot, charId, 'active');
                     } else {
