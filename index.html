@@ -163,11 +163,10 @@
 <body>
 
     <h1>SPRINKI MAKER</h1>
-    <p class="subtitle">ระบบดึงไฟล์เสียง .wav และจัดการรูปภาพแบบ Real-time</p>
+    <p class="subtitle">ลากเสียงมาวางได้ทันที ระบบจะเปิดการทำงานอัตโนมัติเมื่อเริ่มเล่น</p>
     
     <div class="controls">
-        <button id="start-btn">1. เริ่มระบบเสียง (Engine Start)</button>
-        <button class="reset-btn" onclick="resetGame()">2. ล้างเวที</button>
+        <button class="reset-btn" onclick="resetGame()">ล้างเวทีทั้งหมด</button>
     </div>
 
     <div id="game-board">
@@ -203,7 +202,18 @@
 
     <script>
         const players = {};
-        let engineStarted = false;
+        let audioStarted = false;
+
+        // 1. Invisible Initialization: ฟังก์ชันเปิด Audio Context แบบเงียบๆ
+        async function ensureAudioStarted() {
+            if (!audioStarted) {
+                await Tone.start();
+                Tone.Transport.bpm.value = 120;
+                Tone.Transport.start();
+                audioStarted = true;
+                console.log("Audio Engine Started via User Interaction");
+            }
+        }
 
         function updateCharacterState(slotElement, charId, status) {
             const fileName = `char${charId}-${status}.png`;
@@ -214,7 +224,6 @@
                 imgElement.src = fileName;
                 imgElement.onload = () => imgElement.style.opacity = '1';
                 imgElement.onerror = () => {
-                    console.error(`Asset missing: ${fileName}`);
                     imgElement.style.opacity = '0';
                 };
             }
@@ -225,7 +234,6 @@
             }
         }
 
-        // โหลดเสียงล่วงหน้าทันทีที่เปิดหน้าเว็บ (Pre-load Strategy)
         function preLoadSounds() {
             document.querySelectorAll('.instrument').forEach(inst => {
                 const soundFile = inst.dataset.sound;
@@ -237,62 +245,51 @@
             });
         }
 
-        // เรียกใช้งานทันที
         preLoadSounds();
 
-        // เริ่มต้นสถานะภาพทั้งหมด
         document.querySelectorAll('.character-slot').forEach(slot => {
             updateCharacterState(slot, slot.dataset.id, 'idle');
-        });
-
-        const startBtn = document.getElementById('start-btn');
-        startBtn.addEventListener('click', async () => {
-            await Tone.start();
-            Tone.Transport.bpm.value = 120;
-            Tone.Transport.start();
-            engineStarted = true;
-            startBtn.innerText = "ระบบออนไลน์ 🟢";
-            startBtn.disabled = true;
         });
 
         const instruments = document.querySelectorAll('.instrument');
         const slots = document.querySelectorAll('.character-slot');
 
+        // 2. Event Listener Mapping: ผูกการเริ่มระบบเข้ากับการโต้ตอบของผู้ใช้
         instruments.forEach(inst => {
             inst.addEventListener('dragstart', (e) => {
+                ensureAudioStarted(); // เริ่มโหลด Audio ทันทีที่เริ่มลาก
                 e.dataTransfer.setData('text/plain', e.target.id);
             });
         });
+
+        // รองรับการคลิกหน้าจอทั่วไปเพื่อเปิดเสียง (เพื่อความปลอดภัย)
+        document.body.addEventListener('mousedown', ensureAudioStarted, { once: true });
+        document.body.addEventListener('touchstart', ensureAudioStarted, { once: true });
 
         slots.forEach(slot => {
             slot.addEventListener('dragover', (e) => e.preventDefault());
             slot.addEventListener('dragenter', () => slot.classList.add('drag-over'));
             slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
 
-            slot.addEventListener('drop', (e) => {
+            slot.addEventListener('drop', async (e) => {
                 e.preventDefault();
                 slot.classList.remove('drag-over');
                 
-                if (!engineStarted) {
-                    alert("กรุณากดปุ่ม 'เริ่มระบบเสียง' ก่อนครับ");
-                    return;
-                }
+                // ตรวจสอบความพร้อมของระบบเสียงอีกครั้ง
+                await ensureAudioStarted();
 
                 const soundId = e.dataTransfer.getData('text/plain');
                 const charId = slot.dataset.id;
                 const player = players[soundId];
 
-                // อัปเดตภาพทันทีเพื่อให้ User รู้สึกว่าระบบทำงานแล้ว (Visual Feedback)
                 slot.classList.add('active');
                 updateCharacterState(slot, charId, 'active');
 
-                // ฟังก์ชันเล่นเสียงพร้อมระบบ Check Loading
                 const playWhenReady = () => {
                     if (player.loaded) {
                         player.start("@1n");
                         updateCharacterState(slot, charId, 'active');
                     } else {
-                        // ถ้ายังโหลดไม่เสร็จ ให้แสดงสถานะ Loading และลองใหม่ทุกๆ 100ms
                         updateCharacterState(slot, charId, 'Loading...');
                         setTimeout(playWhenReady, 100);
                     }
