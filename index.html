@@ -42,9 +42,9 @@
             max-width: 900px;
         }
 
-        /* 4. Character Slot: ปรับปรุงโครงสร้างเพื่อการจัดวางรูปภาพแบบ Absolute */
+        /* 4. Character Slot */
         .character-slot {
-            width: 160px; /* เพิ่มขนาดเล็กน้อยเพื่อความชัดเจน */
+            width: 160px; 
             height: 230px;
             background-color: var(--slot-bg);
             border: 2px solid #334155;
@@ -56,27 +56,31 @@
             padding-bottom: 10px;
             transition: all 0.2s ease;
             position: relative;
-            overflow: hidden; /* ตัดส่วนเกินที่ซูมออกไป */
+            overflow: hidden; 
         }
 
-        /* 5. Image Container: หัวใจสำคัญของการแก้ปัญหาภาพไม่เต็มกรอบ */
+        /* 5. Image Container */
         .char-img {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* object-fit: contain จะรักษาอัตราส่วนภาพไว้ */
             object-fit: contain; 
-            /* ซูมภาพขึ้น 20% เพื่อกำจัดขอบขาวที่อาจติดมากับไฟล์ต้นฉบับ */
             transform: scale(1.2); 
             transform-origin: center center;
             transition: transform 0.3s ease;
+            opacity: 0;
         }
 
         .active .char-img {
-            /* เมื่อ active อาจจะเพิ่มลูกเล่นการขยับเล็กน้อย */
             transform: scale(1.3);
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: scale(1.3) translateY(0); }
+            to { transform: scale(1.3) translateY(-5px); }
         }
 
         .character-slot.drag-over {
@@ -159,7 +163,7 @@
 <body>
 
     <h1>SPRINKI MAKER</h1>
-    <p class="subtitle">ลากไอคอนไปวางเพื่อเริ่มการแสดง (ปรับแต่งการแสดงผลภาพให้เต็มกรอบ)</p>
+    <p class="subtitle">ลากเสียง .wav ที่คุณเตรียมไว้มาวางบนเวที</p>
     
     <div class="controls">
         <button id="start-btn">1. เริ่มระบบเสียง (Engine Start)</button>
@@ -167,7 +171,6 @@
     </div>
 
     <div id="game-board">
-        <!-- สร้างโครงสร้างที่มี <img> แท็กเพื่อการจัดการที่แม่นยำกว่า background-image -->
         <div class="character-slot" id="char1" data-id="1">
             <img src="" class="char-img" id="img-1">
             <div class="status-indicator">Idle</div>
@@ -191,36 +194,24 @@
     </div>
     
     <div id="instrument-panel">
-        <div class="instrument beat" id="sound1" draggable="true">BEAT 1</div>
-        <div class="instrument beat" id="sound2" draggable="true">BEAT 2</div>
-        <div class="instrument melo" id="sound3" draggable="true">MELO 1</div>
-        <div class="instrument melo" id="sound4" draggable="true">MELO 2</div>
-        <div class="instrument vocal" id="sound5" draggable="true">VOCAL</div>
+        <!-- แก้ไขนามสกุลไฟล์เป็น .wav ตามข้อมูลที่คุณเตรียมมา -->
+        <div class="instrument beat" id="sound1" draggable="true" data-sound="sound1.wav">BEAT 1</div>
+        <div class="instrument beat" id="sound2" draggable="true" data-sound="sound2.wav">BEAT 2</div>
+        <div class="instrument melo" id="sound3" draggable="true" data-sound="sound3.wav">MELO 1</div>
+        <div class="instrument melo" id="sound4" draggable="true" data-sound="sound4.wav">MELO 2</div>
+        <div class="instrument vocal" id="sound5" draggable="true" data-sound="sound5.wav">VOCAL</div>
     </div>
 
     <script>
-        const sampleUrls = {
-            'sound1': 'https://tonejs.github.io/audio/loop/drums.mp3',
-            'sound2': 'https://tonejs.github.io/audio/loop/cool-loop.mp3',
-            'sound3': 'https://tonejs.github.io/audio/loop/chime.mp3',
-            'sound4': 'https://tonejs.github.io/audio/loop/loops.mp3',
-            'sound5': 'https://tonejs.github.io/audio/loop/funky.mp3'
-        };
-
         const players = {};
         let engineStarted = false;
 
-        /**
-         * ฟังก์ชันอัปเดตรูปภาพ
-         * เปลี่ยนจากการแก้ CSS background มาเป็นการเปลี่ยน src ของ <img> โดยตรง
-         */
         function updateCharacterState(slotElement, charId, status) {
             const fileName = `char${charId}-${status}.png`;
             const imgElement = slotElement.querySelector('.char-img');
             
             if (imgElement) {
                 imgElement.src = fileName;
-                // ถ้าภาพโหลดไม่ขึ้น (error) ให้ซ่อนตัวภาพไปก่อนเพื่อความสะอาด
                 imgElement.onerror = () => imgElement.style.opacity = '0';
                 imgElement.onload = () => imgElement.style.opacity = '1';
             }
@@ -229,10 +220,17 @@
             if (indicator) indicator.innerText = status;
         }
 
-        Object.keys(sampleUrls).forEach(key => {
-            players[key] = new Tone.Player(sampleUrls[key]).toDestination();
-            players[key].loop = true;
-        });
+        // 8. Sound Loading Logic: ปรับปรุงให้รองรับไฟล์ .wav
+        function loadSounds() {
+            document.querySelectorAll('.instrument').forEach(inst => {
+                const soundFile = inst.dataset.sound;
+                players[inst.id] = new Tone.Player({
+                    url: soundFile,
+                    loop: true,
+                    autostart: false
+                }).toDestination();
+            });
+        }
 
         document.querySelectorAll('.character-slot').forEach(slot => {
             updateCharacterState(slot, slot.dataset.id, 'idle');
@@ -240,12 +238,17 @@
 
         const startBtn = document.getElementById('start-btn');
         startBtn.addEventListener('click', async () => {
-            await Tone.start();
-            Tone.Transport.bpm.value = 120;
-            Tone.Transport.start();
-            engineStarted = true;
-            startBtn.innerText = "ระบบออนไลน์ 🟢";
-            startBtn.disabled = true;
+            try {
+                await Tone.start();
+                loadSounds(); 
+                Tone.Transport.bpm.value = 120;
+                Tone.Transport.start();
+                engineStarted = true;
+                startBtn.innerText = "ระบบออนไลน์ 🟢";
+                startBtn.disabled = true;
+            } catch (e) {
+                console.error("Audio Engine Error:", e);
+            }
         });
 
         const instruments = document.querySelectorAll('.instrument');
@@ -276,9 +279,14 @@
                 const charId = slot.dataset.id;
 
                 if (players[soundId]) {
-                    players[soundId].start("@1n");
-                    slot.classList.add('active');
-                    updateCharacterState(slot, charId, 'active');
+                    if (players[soundId].loaded) {
+                        players[soundId].start("@1n"); 
+                        slot.classList.add('active');
+                        updateCharacterState(slot, charId, 'active');
+                    } else {
+                        // กรณีที่ไฟล์ .wav ขนาดใหญ่และยังโหลดไม่เสร็จ
+                        console.warn("ระบบกำลังเตรียมเสียงกรุณารอสักครู่...");
+                    }
                 }
             });
         });
