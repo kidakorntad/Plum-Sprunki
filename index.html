@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sprunki Custom Maker - Production Edition</title>
-    <!-- 1. Tone.js: ห้องสมุดจัดการเสียงที่แม่นยำระดับห้องอัด เพื่อให้เสียง Loop ตรงจังหวะกันเป๊ะ -->
+    <!-- 1. Tone.js: Library สำหรับจัดการ Web Audio -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <style>
-        /* 2. Design Tokens: เน้นความสะอาดตา (Minimalist) และพื้นหลังขาวบริสุทธิ์ */
         :root {
             --bg-color: #0f172a;    
             --slot-bg: #ffffff;     
             --accent: #10b981;      
+            --warning: #f59e0b;
         }
 
         body {
@@ -31,7 +31,6 @@
         h1 { margin-bottom: 5px; font-weight: 800; font-size: 1.5rem; color: var(--accent); }
         .subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 0.9rem; text-align: center; }
 
-        /* 3. Game Board */
         #game-board {
             display: flex;
             gap: 12px;
@@ -42,7 +41,6 @@
             max-width: 900px;
         }
 
-        /* 4. Character Slot */
         .character-slot {
             width: 160px; 
             height: 230px;
@@ -59,7 +57,6 @@
             overflow: hidden; 
         }
 
-        /* 5. Image Container */
         .char-img {
             position: absolute;
             top: 0;
@@ -69,7 +66,7 @@
             object-fit: contain; 
             transform: scale(1.2); 
             transform-origin: center center;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s;
             opacity: 0;
         }
 
@@ -85,7 +82,7 @@
 
         .character-slot.drag-over {
             border-color: var(--accent);
-            background-color: #f8fafc;
+            background-color: #f1f5f9;
         }
 
         .character-slot.active {
@@ -94,7 +91,6 @@
             box-shadow: 0 0 25px rgba(16, 185, 129, 0.5);
         }
 
-        /* 6. Status Label */
         .status-indicator {
             font-size: 10px;
             background: rgba(0, 0, 0, 0.7);
@@ -114,7 +110,11 @@
             font-weight: bold;
         }
 
-        /* 7. Instrument Panel */
+        .loading-status {
+            background: var(--warning) !important;
+            color: #000 !important;
+        }
+
         #instrument-panel {
             background: #1e293b;
             padding: 15px 30px;
@@ -163,7 +163,7 @@
 <body>
 
     <h1>SPRINKI MAKER</h1>
-    <p class="subtitle">ลากเสียง .wav ที่คุณเตรียมไว้มาวางบนเวที</p>
+    <p class="subtitle">ระบบดึงไฟล์เสียง .wav และจัดการรูปภาพแบบ Real-time</p>
     
     <div class="controls">
         <button id="start-btn">1. เริ่มระบบเสียง (Engine Start)</button>
@@ -172,29 +172,28 @@
 
     <div id="game-board">
         <div class="character-slot" id="char1" data-id="1">
-            <img src="" class="char-img" id="img-1">
+            <img src="" class="char-img">
             <div class="status-indicator">Idle</div>
         </div>
         <div class="character-slot" id="char2" data-id="2">
-            <img src="" class="char-img" id="img-2">
+            <img src="" class="char-img">
             <div class="status-indicator">Idle</div>
         </div>
         <div class="character-slot" id="char3" data-id="3">
-            <img src="" class="char-img" id="img-3">
+            <img src="" class="char-img">
             <div class="status-indicator">Idle</div>
         </div>
         <div class="character-slot" id="char4" data-id="4">
-            <img src="" class="char-img" id="img-4">
+            <img src="" class="char-img">
             <div class="status-indicator">Idle</div>
         </div>
         <div class="character-slot" id="char5" data-id="5">
-            <img src="" class="char-img" id="img-5">
+            <img src="" class="char-img">
             <div class="status-indicator">Idle</div>
         </div>
     </div>
     
     <div id="instrument-panel">
-        <!-- แก้ไขนามสกุลไฟล์เป็น .wav ตามข้อมูลที่คุณเตรียมมา -->
         <div class="instrument beat" id="sound1" draggable="true" data-sound="sound1.wav">BEAT 1</div>
         <div class="instrument beat" id="sound2" draggable="true" data-sound="sound2.wav">BEAT 2</div>
         <div class="instrument melo" id="sound3" draggable="true" data-sound="sound3.wav">MELO 1</div>
@@ -209,19 +208,25 @@
         function updateCharacterState(slotElement, charId, status) {
             const fileName = `char${charId}-${status}.png`;
             const imgElement = slotElement.querySelector('.char-img');
+            const indicator = slotElement.querySelector('.status-indicator');
             
             if (imgElement) {
                 imgElement.src = fileName;
-                imgElement.onerror = () => imgElement.style.opacity = '0';
                 imgElement.onload = () => imgElement.style.opacity = '1';
+                imgElement.onerror = () => {
+                    console.error(`Asset missing: ${fileName}`);
+                    imgElement.style.opacity = '0';
+                };
             }
-            
-            const indicator = slotElement.querySelector('.status-indicator');
-            if (indicator) indicator.innerText = status;
+            if (indicator) {
+                indicator.innerText = status;
+                if (status === 'Loading...') indicator.classList.add('loading-status');
+                else indicator.classList.remove('loading-status');
+            }
         }
 
-        // 8. Sound Loading Logic: ปรับปรุงให้รองรับไฟล์ .wav
-        function loadSounds() {
+        // โหลดเสียงล่วงหน้าทันทีที่เปิดหน้าเว็บ (Pre-load Strategy)
+        function preLoadSounds() {
             document.querySelectorAll('.instrument').forEach(inst => {
                 const soundFile = inst.dataset.sound;
                 players[inst.id] = new Tone.Player({
@@ -232,23 +237,22 @@
             });
         }
 
+        // เรียกใช้งานทันที
+        preLoadSounds();
+
+        // เริ่มต้นสถานะภาพทั้งหมด
         document.querySelectorAll('.character-slot').forEach(slot => {
             updateCharacterState(slot, slot.dataset.id, 'idle');
         });
 
         const startBtn = document.getElementById('start-btn');
         startBtn.addEventListener('click', async () => {
-            try {
-                await Tone.start();
-                loadSounds(); 
-                Tone.Transport.bpm.value = 120;
-                Tone.Transport.start();
-                engineStarted = true;
-                startBtn.innerText = "ระบบออนไลน์ 🟢";
-                startBtn.disabled = true;
-            } catch (e) {
-                console.error("Audio Engine Error:", e);
-            }
+            await Tone.start();
+            Tone.Transport.bpm.value = 120;
+            Tone.Transport.start();
+            engineStarted = true;
+            startBtn.innerText = "ระบบออนไลน์ 🟢";
+            startBtn.disabled = true;
         });
 
         const instruments = document.querySelectorAll('.instrument');
@@ -261,33 +265,40 @@
         });
 
         slots.forEach(slot => {
-            slot.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                slot.classList.add('drag-over');
-            });
-
-            slot.addEventListener('dragleave', () => {
-                slot.classList.remove('drag-over');
-            });
+            slot.addEventListener('dragover', (e) => e.preventDefault());
+            slot.addEventListener('dragenter', () => slot.classList.add('drag-over'));
+            slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
 
             slot.addEventListener('drop', (e) => {
                 e.preventDefault();
                 slot.classList.remove('drag-over');
-                if (!engineStarted) return;
+                
+                if (!engineStarted) {
+                    alert("กรุณากดปุ่ม 'เริ่มระบบเสียง' ก่อนครับ");
+                    return;
+                }
 
                 const soundId = e.dataTransfer.getData('text/plain');
                 const charId = slot.dataset.id;
+                const player = players[soundId];
 
-                if (players[soundId]) {
-                    if (players[soundId].loaded) {
-                        players[soundId].start("@1n"); 
-                        slot.classList.add('active');
+                // อัปเดตภาพทันทีเพื่อให้ User รู้สึกว่าระบบทำงานแล้ว (Visual Feedback)
+                slot.classList.add('active');
+                updateCharacterState(slot, charId, 'active');
+
+                // ฟังก์ชันเล่นเสียงพร้อมระบบ Check Loading
+                const playWhenReady = () => {
+                    if (player.loaded) {
+                        player.start("@1n");
                         updateCharacterState(slot, charId, 'active');
                     } else {
-                        // กรณีที่ไฟล์ .wav ขนาดใหญ่และยังโหลดไม่เสร็จ
-                        console.warn("ระบบกำลังเตรียมเสียงกรุณารอสักครู่...");
+                        // ถ้ายังโหลดไม่เสร็จ ให้แสดงสถานะ Loading และลองใหม่ทุกๆ 100ms
+                        updateCharacterState(slot, charId, 'Loading...');
+                        setTimeout(playWhenReady, 100);
                     }
-                }
+                };
+
+                if (player) playWhenReady();
             });
         });
 
